@@ -30,6 +30,21 @@ A collection of comprehensive system design documents for large-scale distribute
 - Production Kubernetes manifests
 - Contract testing, integration testing, and E2E testing strategies
 
+### [Native Stock Trading App Ecosystem](./native_stock_trading_app.md)
+**Platform:** iOS (SwiftUI + TCA) & Android (Jetpack Compose + MVI)  
+**Scale:** 5M DAU  
+**Highlights:**
+- Platform-specific architectures (TCA for iOS, MVI for Android)
+- SwiftUI and Jetpack Compose code skeletons
+- iOS features: Live Activities, WidgetKit, App Intents, Vision framework
+- Android features: Dynamic Feature Modules, WorkManager, Wear OS, BiometricPrompt
+- 120fps chart rendering with Metal (iOS) and Canvas API (Android)
+- Offline-first with SwiftData and Room database
+- Native WebSocket clients for real-time quotes
+- Fastlane (iOS) and Gradle (Android) CI/CD pipelines
+- Firebase Crashlytics and Remote Config integration
+- App Store and Play Store optimization strategies
+
 
 ## 🎯 Purpose
 
