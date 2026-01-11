@@ -45,6 +45,19 @@ A collection of comprehensive system design documents for large-scale distribute
 - Shared gRPC / Protobuf infrastructure
 - Fastlane (iOS) and Gradle (Android) CI/CD pipelines
 
+### [React Native Stock Trading App](./rn_stock_trading_app.md)
+**Platform:** Cross-platform (iOS, Android, Web via Expo)  
+**Scale:** 5M DAU  
+**Highlights:**
+- MVVM Architecture with Zustand and Repository pattern
+- Offline-first data layer using WatermelonDB / expo-sqlite
+- Real-time quote management with Socket.io and Reanimated
+- Optimistic UI updates and background synchronization
+- Performance tuning with Hermes, FlashList, and bundle analysis
+- Native integration (Biometrics, Push Notifications, Deep Linking)
+- Deployment strategy via EAS (Expo Application Services)
+- Complete infrastructure monitoring with Sentry and Firebase
+
 
 ## 🎯 Purpose
 
