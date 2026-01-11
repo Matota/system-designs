@@ -16,6 +16,21 @@ A collection of comprehensive system design documents for large-scale distribute
 - GDPR compliance and security measures
 - Production-ready deployment scripts (Terraform + K8s YAML)
 
+### [E-Commerce: Monolith-to-Microservices Migration](./ecommerce_monolith_to_microservices.md)
+**Migration Timeline:** 6 months  
+**Tech Stack:** Node.js/Express, PostgreSQL, Redis, Kafka, Docker, Kubernetes  
+**Highlights:**
+- Complete migration guide using Strangler Pattern
+- Before/after architecture with C4 diagrams (Levels 1-3)
+- Database decomposition from monolith to database-per-service
+- Kafka event-driven architecture with event schemas
+- Feature flags for gradual rollout (0% → 100%)
+- Comprehensive rollback plans and risk mitigation
+- Docker Compose for local development
+- Production Kubernetes manifests
+- Contract testing, integration testing, and E2E testing strategies
+
+
 ## 🎯 Purpose
 
 These documents serve as:
