@@ -56,7 +56,178 @@ graph TD
     *   **Cassandra** is used for the chat history due to its high write throughput and horizontal scalability, which is perfect for time-series data like messages.
     *   **PostgreSQL** is used for relational data like user profiles and contact lists.
 
-## 4. End-to-End Encryption (E2EE) Deep Dive
+## 4. API Design
+
+The API is split between a standard REST API for management tasks and a real-time API over WebSockets for messaging.
+
+### REST API Endpoints (Gateway)
+
+#### 1. User Registration
+```http
+POST /api/v1/users/register
+Content-Type: application/json
+
+Request:
+{
+  "phone_number": "+14155552671",
+  "name": "Jane Doe",
+  "public_keys": {
+    "identity_key": "...",
+    "pre_keys": ["...", "..."]
+  }
+}
+
+Response (201 Created):
+{
+  "user_id": "u-a1b2c3d4",
+  "status": "Verification required"
+}
+```
+
+#### 2. Create Group Chat
+```http
+POST /api/v1/groups
+Content-Type: application/json
+Authorization: Bearer <user_token>
+
+Request:
+{
+  "group_name": "Project Team",
+  "members": ["u-a1b2c3d4", "u-b2c3d4e5", "u-c3d4e5f6"]
+}
+
+Response (201 Created):
+{
+  "group_id": "g-xyz-789",
+  "group_name": "Project Team",
+  "members": [],
+  "created_at": "2026-01-18T11:00:00Z"
+}
+```
+
+#### 3. Get Pre-signed URL for Media Upload
+```http
+POST /api/v1/media/upload
+Content-Type: application/json
+Authorization: Bearer <user_token>
+
+Request:
+{
+  "file_name": "image.jpg",
+  "file_type": "image/jpeg",
+  "is_encrypted": true
+}
+
+Response (200 OK):
+{
+  "media_id": "m-12345",
+  "upload_url": "https://whatsapp-media.s3.amazonaws.com/..."
+}
+```
+
+### Real-time API (WebSockets)
+
+(Events sent and received by the client over a persistent WebSocket connection)
+
+#### Client -> Server: Send Message
+```json
+{
+  "event": "send_message",
+  "payload": {
+    "recipient_id": "u-b2c3d4e5", 
+    "encrypted_content": "..." 
+  }
+}
+```
+
+#### Server -> Client: Receive Message
+```json
+{
+  "event": "receive_message",
+  "payload": {
+    "sender_id": "u-a1b2c3d4",
+    "encrypted_content": "...",
+    "timestamp": "2026-01-18T11:05:00Z"
+  }
+}
+```
+
+#### Server -> Client: Message Status Update
+```json
+{
+  "event": "status_update",
+  "payload": {
+    "message_id": "msg-abc-123",
+    "status": "DELIVERED"
+  }
+}
+```
+
+## 5. Database Design
+
+### Cassandra Schema (For Messages)
+
+(Cassandra is chosen for its extreme write throughput and horizontal scalability, making it perfect for storing trillions of messages.)
+
+#### messages_by_chat Table
+(A "chat" can be a 1-on-1 chat or a group chat. The `chat_id` could be a composite of the two user IDs for 1-on-1, or the group ID.)
+```cql
+CREATE TABLE messages_by_chat (
+    chat_id UUID,
+    message_id TIMEUUID,
+    sender_id UUID,
+    encrypted_content BLOB,
+    PRIMARY KEY (chat_id, message_id)
+) WITH CLUSTERING ORDER BY (message_id DESC);
+```
+
+### PostgreSQL Schema (For Users and Groups)
+
+#### users Table
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone_number VARCHAR(20) UNIQUE NOT NULL,
+    name VARCHAR(100),
+    status_text TEXT,
+    profile_picture_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### user_public_keys Table
+```sql
+CREATE TABLE user_public_keys (
+    user_id UUID PRIMARY KEY REFERENCES users(id),
+    identity_key TEXT NOT NULL,
+    pre_keys LIST<TEXT>,
+    last_updated TIMESTAMP WITH TIME ZONE
+);
+```
+
+#### groups Table
+```sql
+CREATE TABLE groups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    icon_url TEXT,
+    creator_id UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### group_members Table
+```sql
+CREATE TABLE group_members (
+    group_id UUID NOT NULL REFERENCES groups(id),
+    user_id UUID NOT NULL REFERENCES users(id),
+    role TEXT, -- 'admin' or 'member'
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (group_id, user_id)
+);
+```
+
+## 6. End-to-End Encryption (E2EE) Deep Dive
 
 E2EE ensures that only the sender and intended recipient(s) can read the message content.
 
@@ -65,7 +236,7 @@ E2EE ensures that only the sender and intended recipient(s) can read the message
 3.  **Double Ratchet Algorithm**: For subsequent messages, this algorithm is used to generate a new encryption key for *every single message*. This provides forward secrecy (if a key is compromised, past messages remain secure) and post-compromise security.
 4.  **The Server's Role**: The server only sees encrypted ciphertext. Its job is to store and forward these encrypted blobs to the correct recipients. It has no ability to decrypt them.
 
-## 5. Detailed Data Flows
+## 7. Detailed Data Flows
 
 ### A. Sending a Message
 
@@ -99,9 +270,9 @@ Media files are also end-to-end encrypted.
 3.  **Send Key in a Message**: The client sends a regular chat message to the recipient containing two things: the URL of the encrypted file and the symmetric key used to encrypt it. This message itself is E2E encrypted with the Signal Protocol.
 4.  **Download and Decrypt**: The recipient's app receives the message, decrypts it to get the URL and the key, downloads the encrypted file from S3, and then decrypts the file locally for viewing.
 
-## 6. Key Challenges
+## 8. Key Challenges
 
 *   **Scalability of Connections**: Maintaining millions of persistent WebSocket connections is a major engineering challenge. The `WebSocket Manager` needs to be a distributed, load-balanced fleet of servers with connection state often shared via a fast cache like Redis.
 *   **E2EE in Group Chats**: E2EE in group chats is more complex. A shared group encryption key is established. When a member is added or removed, this key must be securely renegotiated for all remaining members.
 *   **Offline Delivery**: When a user is offline, the server stores the encrypted messages and delivers them as soon as the user reconnects. Push notifications are used to wake the client app if it's in the background.
-*   **Data Storage**: Storing trillions of messages requires a highly scalable, write-optimized database. Cassandra's architecture is an excellent fit for this use case.
+*   **Data Storage**: Storing trillions of messages requires a a highly scalable, write-optimized database. Cassandra's architecture is an excellent fit for this use case.

@@ -87,7 +87,63 @@ graph TD
 
 *   **Search Indexer**: This component receives the unique content, processes it (tokenization, stemming, stop-word removal), and builds a reverse index. A reverse index maps words to the documents that contain them, which is the fundamental data structure for fast keyword searching.
 
-## 4. The Crawling Workflow
+## 4. Service Communication & APIs
+
+A web crawler's core components communicate asynchronously via internal RPC or message queues rather than a public REST API.
+
+### Internal Service APIs
+
+#### 1. URL Frontier -> Crawler Worker
+*   **Action**: `GetWork(batch_size)`
+*   **Protocol**: gRPC
+*   **Request**: `{ "worker_id": "crawler-worker-123", "batch_size": 100 }`
+*   **Response**: `[{ "url": "http://example.com", "priority": 0.8 }, ...]`
+*   **Description**: A worker requests a batch of URLs to crawl. The Frontier provides them based on its scheduling and politeness logic.
+
+#### 2. Crawler Worker -> URL Frontier
+*   **Action**: `SubmitDiscoveredLinks(links)`
+*   **Protocol**: Message Queue (Kafka/RabbitMQ)
+*   **Message Body**: `{ "source_url": "http://example.com", "discovered_links": ["http://example.com/page1", "http://another-site.com"] }`
+*   **Description**: A worker sends newly found URLs back to the Frontier to be processed and scheduled.
+
+#### 3. Crawler Worker -> Indexer Service
+*   **Action**: `IndexDocument(document)`
+*   **Protocol**: Message Queue (Kafka/RabbitMQ)
+*   **Message Body**: `{ "url": "http://example.com", "content_hash": "a1b2c3d4...", "html_path": "s3://crawled-content/...", "extracted_text": "Welcome to example..." }`
+*   **Description**: A worker sends processed page content to the indexing pipeline.
+
+## 5. Data Storage Design
+
+The data storage for a web crawler is highly specialized and distributed, focusing on throughput and massive scale rather than relational consistency.
+
+### 1. URL Frontier Storage
+*   **Technology**: A combination of in-memory stores (Redis) for hot queues and a persistent DB (Cassandra or a RocksDB-based store) for the main URL set.
+*   **Key Data Structures**:
+    *   **URL Set**: A massive set containing every URL ever seen to avoid adding duplicates. A Bloom Filter can be used as a first-pass check to reduce DB lookups.
+    *   **Priority Queues**: Queues for URLs to be crawled, often bucketed by priority score (e.g., PageRank).
+    *   **Per-Host Queues**: To enforce politeness, each host/domain has its own queue of URLs.
+    *   **Scheduler Timestamps**: A mapping of `host -> last_crawled_timestamp` to know when it's safe to crawl that host again.
+
+### 2. Content Store
+*   **Technology**: Distributed Object Storage like **Amazon S3** or **HDFS**.
+*   **Schema**: Not a traditional schema. It's a key-value store where the key is the URL (or a hash of the URL/content) and the value is the compressed raw HTML document.
+*   **Example**: `s3://crawled-content/a1/b2/c3/a1b2c3d4e5f6.html.gz`
+
+### 3. Search Index
+*   **Technology**: **Elasticsearch** or **Apache Solr/Lucene**.
+*   **Schema**: A reverse index. This is the core data structure that maps terms (words) to the documents that contain them.
+*   **Simplified Index Structure**:
+    *   **Term Dictionary**: A sorted list of all unique words in the corpus.
+    *   **Postings List**: For each word in the dictionary, a list of `(document_id, position, frequency, ...)` tuples.
+    *   **Document Store**: Stores metadata for each document (URL, title, etc.) that can be retrieved once a search matches a document ID.
+
+### 4. URL/Content Hash Store
+*   **Technology**: A massive key-value store like **Bigtable** or **Cassandra**.
+*   **Schema**:
+    *   `content_hashes` table: `(content_hash, document_id)` - Used by the Duplicate Detector.
+    *   `url_seen` table: `(url_hash, timestamp)` - Used by the URL Frontier to quickly check if a URL has been discovered before.
+
+## 6. The Crawling Workflow
 
 ```mermaid
 sequenceDiagram
@@ -113,10 +169,10 @@ sequenceDiagram
     Worker->>URL_Frontier: Add(New Links)
 ```
 
-## 5. Key Challenges and Solutions
+## 7. Key Challenges and Solutions
 
 *   **Scalability (The Scale of the Web)**: The system must be distributed from the ground up. The URL Frontier, Crawler Workers, and Indexing pipeline are all designed as independent, scalable services.
 *   **Politeness**: Overloading web servers is unethical and can get the crawler blocked. The URL Frontier is the central enforcer of politeness. It uses a scheduler with per-hostname queues, ensuring that requests to a single host are spaced out by a configured delay (e.g., a few seconds).
 *   **Crawler Traps**: Some websites have dynamically generated pages that can create an infinite number of URLs (e.g., a calendar with a "next month" link). The crawler must detect these patterns, often by looking for URLs with excessively long paths or many repeating parameters, and avoid getting stuck.
-*   **Content Freshness**: Web pages are constantly changing. The URL Frontier must prioritize re-crawling important pages more frequently than static ones. This is often based on historical change frequency and the page's overall importance (PageRank).
+*   **Content Freshness**: Web pages are constantly changing. The URL Frontier must prioritize re-crawling important pages more frequently than static ones. This is often based on historical change frequency and the page's overall importance(PageRank).
 *   **Data Duplication**: The web is full of duplicate and near-duplicate content. Using checksums or more advanced shingling algorithms is essential to detect this and conserve resources.
