@@ -27,10 +27,10 @@ graph TD
     end
     
     subgraph "Data & Messaging"
-        G[User DB (PostgreSQL)]
-        H[Chat DB (Cassandra)]
-        I[Message Broker (RabbitMQ)]
-        J[Media Storage (S3)]
+        G["User DB (PostgreSQL)"]
+        H["Chat DB (Cassandra)"]
+        I["Message Broker (RabbitMQ)"]
+        J["Media Storage (S3)"]
     end
     
     B --> C; B --> D; B --> F;

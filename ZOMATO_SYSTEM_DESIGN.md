@@ -16,7 +16,7 @@ The system is a classic three-sided marketplace. A microservices architecture is
 
 ```mermaid
 graph TD
-    subgraph User-Facing Clients
+    subgraph "User-Facing Clients"
         A[Customer App]
         B[Restaurant Dashboard]
         C[Delivery Partner App]
@@ -25,7 +25,7 @@ graph TD
     subgraph Backend
         D[API Gateway]
         
-        subgraph Core Services
+        subgraph "Core Services"
             E[Order Service]
             F[Restaurant Service]
             G[Delivery Partner Service]
@@ -33,10 +33,10 @@ graph TD
             I[Notification Service]
         end
 
-        subgraph Data Stores
-            J[PostgreSQL DB]
-            K[Redis (Cache & Geospatial)]
-            L[Elasticsearch (Search)]
+        subgraph "Data Stores"
+            J["PostgreSQL DB"]
+            K["Redis (Cache & Geospatial)"]
+            L["Elasticsearch (Search)"]
         end
     end
 
@@ -48,10 +48,10 @@ graph TD
     F -- Manages --> J
     G -- Manages --> J
     
-    G -- Uses for Location --> K
-    F -- Uses for Cache --> K
+    G -- "Uses for Location" --> K
+    F -- "Uses for Cache" --> K
     
-    F -- Indexes data in --> L
+    F -- "Indexes data in" --> L
 ```
 
 ## 3. Core Services & Responsibilities

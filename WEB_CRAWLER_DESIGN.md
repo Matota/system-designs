@@ -27,37 +27,37 @@ graph TD
         F{Crawler Worker N}
     end
 
-    B -- Distributes URLs to --> C;
-    B -- Distributes URLs to --> D;
-    B -- Distributes URLs to --> E;
-    B -- Distributes URLs to --> F;
+    B -- "Distributes URLs to" --> C;
+    B -- "Distributes URLs to" --> D;
+    B -- "Distributes URLs to" --> E;
+    B -- "Distributes URLs to" --> F;
 
-    C -- Fetches page from --> G[The Internet];
+    C -- "Fetches page from" --> G[The Internet];
     
     subgraph "Processing Pipeline"
         H[DNS Resolver]
-        I[robots.txt Cache]
+        I["robots.txt Cache"]
         J[Content Parser]
         K[Duplicate Detector]
         L[Link Extractor]
     end
 
     C --> H; C --> I;
-    C -- Raw HTML --> J;
-    J -- Text Content --> K;
+    C -- "Raw HTML" --> J;
+    J -- "Text Content" --> K;
     J -- Links --> L;
     
-    L -- New URLs --> B;
+    L -- "New URLs" --> B;
     
     subgraph "Storage & Indexing"
-        M[Content Store (S3/HDFS)]
+        M["Content Store (S3/HDFS)"]
         N[Search Indexer]
-        O[Search Index (Elasticsearch)]
+        O["Search Index (Elasticsearch)"]
     end
     
-    K -- Unique Content --> M;
-    K -- Unique Content --> N;
-    N -- Builds/Updates --> O;
+    K -- "Unique Content" --> M;
+    K -- "Unique Content" --> N;
+    N -- "Builds/Updates" --> O;
 ```
 
 ## 3. Core Components & Responsibilities

@@ -35,9 +35,9 @@ graph TD
         end
 
         subgraph Data Stores
-            I[PostgreSQL DB]
-            J[Redis (Geospatial)]
-            K[Kafka (Messaging)]
+            I["PostgreSQL DB"]
+            J["Redis (Geospatial)"]
+            K["Kafka (Messaging)"]
         end
     end
     

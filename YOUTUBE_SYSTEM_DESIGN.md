@@ -17,27 +17,27 @@ The architecture is split into two main workflows: the **Video Upload/Processing
 ```mermaid
 graph TD
     subgraph Clients
-        A[Web/Mobile Apps]
+        A["Web/Mobile Apps"]
     end
 
     subgraph "Write Path (Processing)"
         B[API Gateway]
         C[Upload Service]
-        D[Raw Video Storage (S3)]
-        E[Message Queue (SQS/Kafka)]
+        D["Raw Video Storage (S3)"]
+        E["Message Queue (SQS/Kafka)"]
         F[Video Processing Workers]
-        G[Processed Video Storage (S3)]
+        G["Processed Video Storage (S3)"]
     end
     
     subgraph "Read Path (Streaming)"
         H[API Gateway]
         I[Video Metadata Service]
-        J[CDN (Cloudflare/Akamai)]
+        J["CDN (Cloudflare/Akamai)"]
     end
     
-    subgraph Data Stores
-        K[Video Metadata DB (Cassandra)]
-        L[Search Index (Elasticsearch)]
+    subgraph "Data Stores"
+        K["Video Metadata DB (Cassandra)"]
+        L["Search Index (Elasticsearch)"]
     end
 
     A -- Upload Request --> B
